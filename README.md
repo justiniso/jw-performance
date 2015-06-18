@@ -58,6 +58,7 @@ during that time. There were 4 users uploading various assets:
 - user 3: 50 assets
 - user 4: 10 assets
 
+```
     TOTAL SECONDS (total time elapsed)
     100.218034
 
@@ -115,6 +116,7 @@ during that time. There were 4 users uploading various assets:
 
     BPS: 2523206.55183 bytes written per second (avg)
     APS: 9.08020207221 assets processed per second (avg)
+```
 
 The queue was ranked according to the subpriority algorithm. The longest a customer waited in the queue was
 1 minute and 5 seconds (user 2 with the most assets). Process times were very short, so the bulk of time spent was
