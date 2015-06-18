@@ -10,48 +10,11 @@ metrics of JWPlayer's transcoders. An overview of how it works:
 
 The idea is that during the lifetime of an asset, some portion of the job's time is spent being uploaded, in queue,
 and processing. The metrics reported by the transcoder will allow us to track how much time is spent in each of those
-stages, alongside other important data such as bytes-per-second.
-
-Given the summary statistics, we can identify failures of the transcoders such as the average job spending too much
-time in queue (overall performance failure) or the standard deviation of queue time being too high (likely a failure
-in the subpriority algorithm).
-
-## Requirements
-
-- unix operating system
-- python 2.7
-- all python packages in requirements.txt (installable by `pip install -r requirements.txt`)
-- redis & redis-server
-
-
-## How to run the demo
-
-First, start the web app. CD into the project root if you are not there already and run:
-
-    # Run the app
-    ./app.py
-
-You also need to ensure the redis server is running and listening on the default port (6379):
-
-    # Start the redis server
-    redis-server
-
-Then you can start any number of queue workers to perform the transcoding background tasks:
-
-    # Start the redis queue workers
-    rqworker default
-
-Finally, run the script to report on the transcoding performance:
-
-    ./run_perf_test.py
-
-Feel free to tweak the numbers.
-
+stages.
 
 ## Output
 
-This is a sample output across 8 workers. The total elapsed time for the run was 100 seconds, processing 910 assets
-during that time. There were 4 users uploading various assets:
+This is a sample output across 8 workers. There were 4 users uploading various assets:
 
 - user 1: 100 assets
 - user 2: 750 assets
@@ -118,24 +81,47 @@ during that time. There were 4 users uploading various assets:
     APS: 9.08020207221 assets processed per second (avg)
 ```
 
-The queue was ranked according to the subpriority algorithm. The longest a customer waited in the queue was
-1 minute and 5 seconds (user 2 with the most assets). Process times were very short, so the bulk of time spent was
-actually the overhead of job queueing and retrieval. A better optimized algorithm would actually batch jobs, but
-that's not the purpose of this demo :)
-
 In a true performance "test," the number of workers would be standardized and these metrics would have fail conditions
 depending on business needs e.g.
 
 - no customer should wait longer than 3 minutes for an asset to complete
 - bytes written per second should exceed 2000000 (2 MBps)
 - no single asset should exceed processing time of 1s
-- queue time standard deviation should not exceed 15s (queues properly load-balanced)
 
-While these metrics are coming from redis, they can be stored in a more permanent form allowing us to track
-key performance metrics over time.
 
-Furthermore, any of these failures are easily accomplished by adding `assert` at the end of the run. This would help
-in enforcing business guidelines for what is acceptable or unacceptable "performance" for the transcoders.
+## Requirements
+
+- unix operating system
+- python 2.7
+- all python packages in requirements.txt (installable by `pip install -r requirements.txt`)
+- redis & redis-server
+
+
+## How to run the demo
+
+First, start the web app. CD into the project root if you are not there already and run:
+
+    # Run the app
+    ./app.py
+
+You also need to ensure the redis server is running and listening on the default port (6379):
+
+    # Start the redis server
+    redis-server
+
+Then you can start any number of queue workers to perform the transcoding background tasks:
+
+    # Start the redis queue workers
+    rqworker default
+
+Finally, run the script to report on the transcoding performance:
+
+    ./run_perf_test.py
+
+Feel free to tweak the numbers.
+
+
+
 
 
 
