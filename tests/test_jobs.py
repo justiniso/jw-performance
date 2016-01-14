@@ -20,18 +20,19 @@ def test_job_states(hostname, large_file):
 
     # Send a resize request and use the job_id to check for current state
     resp = requests.put(hostname + '/image/{}'.format(img_id), data={'action': 'resize', 'size': '50,50'})
-    job_id = resp.json()['job_id']
-    wait_for_job_done(hostname + '/job/{}'.format(job_id))
+    job_id1 = resp.json()['job_id']
 
     # Send a crop request and use the job_id to check for current state
     resp = requests.put(hostname + '/image/{}'.format(img_id), data={'action': 'crop', 'box': '50,50,100,100'})
-    job_id = resp.json()['job_id']
-    wait_for_job_done(hostname + '/job/{}'.format(job_id))
+    job_id2 = resp.json()['job_id']
 
     # Send a transcode request and use the job_id to check for current state
     resp = requests.put(hostname + '/image/{}'.format(img_id), data={'action': 'transcode', 'extension': 'bmp'})
-    job_id = resp.json()['job_id']
-    wait_for_job_done(hostname + '/job/{}'.format(job_id))
+    job_id3 = resp.json()['job_id']
+
+    wait_for_job_done(hostname + '/job/{}'.format(job_id1))
+    wait_for_job_done(hostname + '/job/{}'.format(job_id2))
+    wait_for_job_done(hostname + '/job/{}'.format(job_id3))
 
     # Clean up test data and delete the image
     requests.delete(hostname + '/image/{}'.format(img_id))

@@ -7,6 +7,7 @@ A Redis cache is used to store data about the images and users. We store the fol
 
     images.all                  --  List of all image ids in the system
     images.{img_id}.location    --  The filepath of this image on this machine
+    images.{img_id}.last_job    --  The last job performed on this image
     images.{img_id}.actions     --  List of all actions that have been performed on this image
     user.{user_id}.images       --  List of all image ID's associated with this user
 
@@ -66,17 +67,27 @@ class Image(Resource):
     @marshal_with({
         'id': fields.String,
         'actions': fields.List(fields.String),
-        'location': fields.String
+        'location': fields.String,
+        'last_job': fields.String,
+        'last_job_state': fields.String
     })
     def get(self, img_id):
         location = store.get('images.{img_id}.location'.format(img_id=img_id))
         actions = store.lrange('images.{img_id}.actions'.format(img_id=img_id), 0, -1)
         actions.reverse()
+        last_job = store.get('images.{img_id}.last_job'.format(img_id=img_id))
+        if last_job:
+            last_job_state = store.get(last_job)
+        else:
+            last_job = 'none'
+            last_job_state = 'none'
 
         return {
             'id': img_id,
             'actions': actions,
-            'location': location
+            'location': location,
+            'last_job': last_job,
+            'last_job_state': last_job_state
         }
 
     @marshal_with({'job_id': fields.String})
@@ -107,7 +118,7 @@ class Image(Resource):
             base, ext = os.path.splitext(src)
             dest = os.path.join('/tmp', '.'.join([base, data['extension']]))
 
-            params = {'src': src, 'dest': dest, 'job_id': job_id}
+            params = {'src': src, 'dest': dest, 'job_id': job_id, 'img_id': img_id}
 
         # Enqueue a resize job
         elif data['action'] == 'resize':
@@ -116,7 +127,7 @@ class Image(Resource):
                 size = (int(size[0]), int(size[1]))
             except (KeyError, TypeError, ValueError, AttributeError, IndexError):
                 abort(400, description='Invalid size. Specify width and height delimited by a comma: "50,50"')
-            params = {'src': src, 'dest': src, 'size': size, 'job_id': job_id}
+            params = {'src': src, 'dest': src, 'size': size, 'job_id': job_id, 'img_id': img_id}
 
         # Enqueue a crop job
         elif data['action'] == 'crop':
@@ -125,12 +136,13 @@ class Image(Resource):
                 box = (int(box[0]), int(box[1]), int(box[2]), int(box[3]))
             except (KeyError, TypeError, ValueError, AttributeError, IndexError):
                 abort(400, description='Invalid bounding box. Specify box delimited by comma: "50,150,90,80"')
-            params = {'src': src, 'dest': src, 'box': box, 'job_id': job_id}
+            params = {'src': src, 'dest': src, 'box': box, 'job_id': job_id, 'img_id': img_id}
 
         else:
             abort(400, description='Invalid image action: {}'.format(data['action']))
 
         store.set(job_id, 'queued')
+        store.set('images.{img_id}.last_job'.format(img_id=img_id), job_id)
         store.lpush('images.{img_id}.actions'.format(img_id=img_id), data['action'])
         transcoder.queue.put((data['action'], params))
 

@@ -34,15 +34,17 @@ def transcode(src, dest):
     """
     image = Image.open(src)
 
-    # Limit simultaneous writes to prevent trying to write over open files
-    lock = threading.Lock()
-    lock.acquire()
-    try:
-        _makedirpath(dest)
-        image.save(dest)
-        os.unlink(src)
-    finally:
-        lock.release()
+    _makedirpath(dest)
+    image.save(dest)
+
+    if src != dest:
+        try:
+            os.unlink(src)
+        except OSError, e:
+            if e.errno == errno.ENOENT:
+                pass
+            else:
+                raise
 
 
 def resize(src, dest, size):
@@ -56,15 +58,9 @@ def resize(src, dest, size):
     """
     image = Image.open(src)
 
-    # Limit simultaneous writes to prevent trying to write over open files
-    lock = threading.Lock()
-    lock.acquire()
-    try:
-        _makedirpath(dest)
-        image = image.resize(size, Image.ANTIALIAS)
-        image.save(dest)
-    finally:
-        lock.release()
+    _makedirpath(dest)
+    image = image.resize(size, Image.ANTIALIAS)
+    image.save(dest)
 
 
 def crop(src, dest, box):
@@ -78,15 +74,9 @@ def crop(src, dest, box):
     """
     image = Image.open(src)
 
-    # Limit simultaneous writes to prevent trying to write over open files
-    lock = threading.Lock()
-    lock.acquire()
-    try:
-        _makedirpath(dest)
-        image = image.crop(box)
-        image.save(dest)
-    finally:
-        lock.release()
+    _makedirpath(dest)
+    image = image.crop(box)
+    image.save(dest)
 
 
 def worker():
@@ -97,7 +87,7 @@ def worker():
     """
     while True:
         try:
-            job = queue.get(timeout=10)
+            job = queue.get(timeout=100)
         except Empty:
             _log.debug('Found nothing to process')
             continue
@@ -107,9 +97,13 @@ def worker():
         src = params.get('src')
         dest = params.get('dest')
         job_id = params.get('job_id')
+        img_id = params.get('img_id')
 
         store.set(job_id, 'processing')
 
+        # Only try to process one image at a time
+        lock = threading.Lock()
+        lock.acquire()
         try:
             if action == 'transcode':
                 transcode(src, dest)
@@ -117,9 +111,16 @@ def worker():
                 resize(src, dest, params.get('size'))
             elif action == 'crop':
                 crop(src, dest, params.get('box'))
+
+            # Update the new destination and job status
+            store.set('images.{img_id}.location'.format(img_id=img_id), dest)
+            store.set(job_id, 'done')
+
         except Exception, e:
             _log.warn('Error in job {}: {}'.format(job_id, e))
             store.set(job_id, 'error: {}'.format(e))
             raise
 
-        store.set(job_id, 'done')
+        finally:
+            lock.release()
+
