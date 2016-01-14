@@ -32,10 +32,13 @@ def transcode(src, dest):
     """
     Transcode an image file from a source to a destination file. This will remove the source file
     """
-    image = Image.open(src)
+    try:
+        image = Image.open(src)
 
-    _makedirpath(dest)
-    image.save(dest)
+        _makedirpath(dest)
+        image.save(dest)
+    except IOError:
+        _log.warn('Image truncation error')
 
     if src != dest:
         try:
@@ -56,11 +59,14 @@ def resize(src, dest, size):
     :type size: tuple
     :param size: A tuple of x and y (in pixels) of the new size, e.g. (200, 548)
     """
-    image = Image.open(src)
+    try:
+        image = Image.open(src)
 
-    _makedirpath(dest)
-    image = image.resize(size, Image.ANTIALIAS)
-    image.save(dest)
+        _makedirpath(dest)
+        image = image.resize(size, Image.ANTIALIAS)
+        image.save(dest)
+    except IOError:
+        _log.warn('Image truncation error')
 
 
 def crop(src, dest, box):
@@ -72,11 +78,14 @@ def crop(src, dest, box):
     :type box: tuple
     :param box: Tuple of the new bounding box for the image, e.g. (200, 50, 90, 80)
     """
-    image = Image.open(src)
+    try:
+        image = Image.open(src)
 
-    _makedirpath(dest)
-    image = image.crop(box)
-    image.save(dest)
+        _makedirpath(dest)
+        image = image.crop(box)
+        image.save(dest)
+    except IOError:
+        _log.warn('Image truncation error')
 
 
 def worker():
