@@ -220,13 +220,11 @@ class Images(Resource):
             data['file'].save(filename)
             store = True
         except OSError:
-            store = False
+            filename = ''
 
         if store:
             if os.path.getsize(filename) == 0:
                 _log.warn('File with no bytes uploaded by user {} (img # {})'.format(user_id, img_id))
-        else:
-            filename = ''
 
         # Store data about this image
         store.set('images.{img_id}.location'.format(img_id=img_id), filename)
