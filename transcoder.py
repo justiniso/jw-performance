@@ -129,7 +129,3 @@ def worker():
             _log.warn('Error in job {}: {}'.format(job_id, e))
             store.set(job_id, 'error: {}'.format(e))
             raise
-
-        finally:
-            lock.release()
-
