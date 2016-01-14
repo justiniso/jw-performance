@@ -59,6 +59,19 @@ def all_image_ids():
     return ',\n'.join(store.lrange('images.all', 0, -1))
 
 
+@app.route('/debug/dump-queue')
+def dump_queue():
+    """Dump all jobs in the queue for debugging; they will not be processed by the workers"""
+    if not app.debug:
+        abort(403)
+
+    jobs = []
+    while not transcoder.queue.empty():
+        jobs.append(str(transcoder.queue.get(block=False)))
+
+    return ',\n'.join(jobs) or 'Empty Queue!'
+
+
 class Image(Resource):
     """
     API Resource for a specific image identified by its ID
