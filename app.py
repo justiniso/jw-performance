@@ -155,7 +155,7 @@ class Image(Resource):
             try:
                 size = data['size'].split(',')
                 size = (int(size[0]), int(size[1]))
-            except (TypeError, ValueError, AttributeError, IndexError):
+            except (TypeError, ValueError, AttributeError, KeyError):
                 abort(400, description='Invalid size. Specify width and height delimited by a comma: "50,50"')
             params = {'src': src, 'dest': src, 'size': size, 'job_id': job_id, 'img_id': img_id}
 
@@ -164,7 +164,7 @@ class Image(Resource):
             try:
                 box = data['box'].split(',')
                 box = (int(box[0]), int(box[1]), int(box[2]), int(box[3]))
-            except (TypeError, ValueError, AttributeError, IndexError):
+            except (TypeError, ValueError, AttributeError, KeyError):
                 abort(400, description='Invalid bounding box. Specify box delimited by comma: "50,150,90,80"')
             params = {'src': src, 'dest': src, 'box': box, 'job_id': img_id, 'img_id': job_id}
 
