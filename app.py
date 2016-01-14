@@ -18,7 +18,7 @@ import logging
 import threading
 
 import werkzeug
-from flask import Flask, send_file
+from flask import Flask, send_file, Response
 from flask_restful import Api, Resource, marshal_with, reqparse, fields, abort
 from werkzeug.utils import secure_filename
 from redis import StrictRedis
@@ -48,7 +48,21 @@ def home():
 def serve(img_id):
     """Serve out the image"""
     location = store.get('images.{img_id}.location'.format(img_id=img_id))
-    return send_file(location)
+
+    with open(location, 'rb') as f:
+        img = f.read()
+    base, ext = os.path.splitext(location)
+
+    mimetype = ext
+
+    if mimetype == 'jpg' or mimetype == 'jpeg':
+        mimetype = 'image/jpeg'
+    elif mimetype == 'png':
+        mimetype = 'image/png'
+    elif mimetype == 'bmp':
+        mimetype = 'image/bmp'
+
+    return Response(img, mimetype=mimetype)
 
 
 @app.route('/debug/all-image-ids')
@@ -120,6 +134,9 @@ class Image(Resource):
         if not src:
             abort(404)
 
+        if not data.action:
+            abort(400, description='Please specify an action')
+
         params = {}
 
         # Enqueue a transcode job
@@ -138,7 +155,7 @@ class Image(Resource):
             try:
                 size = data['size'].split(',')
                 size = (int(size[0]), int(size[1]))
-            except (KeyError, TypeError, ValueError, AttributeError, IndexError):
+            except (TypeError, ValueError, AttributeError, IndexError):
                 abort(400, description='Invalid size. Specify width and height delimited by a comma: "50,50"')
             params = {'src': src, 'dest': src, 'size': size, 'job_id': job_id, 'img_id': img_id}
 
@@ -147,9 +164,9 @@ class Image(Resource):
             try:
                 box = data['box'].split(',')
                 box = (int(box[0]), int(box[1]), int(box[2]), int(box[3]))
-            except (KeyError, TypeError, ValueError, AttributeError, IndexError):
+            except (TypeError, ValueError, AttributeError, IndexError):
                 abort(400, description='Invalid bounding box. Specify box delimited by comma: "50,150,90,80"')
-            params = {'src': src, 'dest': src, 'box': box, 'job_id': job_id, 'img_id': img_id}
+            params = {'src': src, 'dest': src, 'box': box, 'job_id': img_id, 'img_id': job_id}
 
         else:
             abort(400, description='Invalid image action: {}'.format(data['action']))
@@ -198,10 +215,18 @@ class Images(Resource):
         filename = secure_filename(str(uuid.uuid4()) + os.path.splitext(data['file'].filename)[-1])
         filename = os.path.join('/tmp', filename)
 
-        data['file'].save(filename)
+        # If we failed to store the image, set the filename to empty
+        try:
+            data['file'].save(filename)
+            store = True
+        except OSError:
+            store = False
 
-        if os.path.getsize(filename) == 0:
-            _log.warn('File with no bytes uploaded by user {} (img # {})'.format(user_id, img_id))
+        if store:
+            if os.path.getsize(filename) == 0:
+                _log.warn('File with no bytes uploaded by user {} (img # {})'.format(user_id, img_id))
+        else:
+            filename = ''
 
         # Store data about this image
         store.set('images.{img_id}.location'.format(img_id=img_id), filename)
